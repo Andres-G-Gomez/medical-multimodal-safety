@@ -20,7 +20,7 @@ This project implements a multimodal AI system that analyzes medical images and 
 
 - Python 3.11+ (tested with Python 3.11)
 - Git
-- 8GB+ RAM
+- 6GB+ RAM
 - NVIDIA GPU with CUDA support (recommended for training)
 
 ### Installation
@@ -78,22 +78,37 @@ streamlit run demo.py
 
 This project uses the MIMIC-CXR dataset:
 
-- **Primary**: [MIMIC-CXR](https://physionet.org/content/mimic-cxr-jpg/2.1.0/) (requires PhysioNet access)
-- **Quick Start**: [HuggingFace processed version](https://huggingface.co/datasets/StanfordAIMI/mimic-cxr-images-512)
+- **Primary**: [HuggingFace processed version](https://huggingface.co/datasets/StanfordAIMI/mimic-cxr-images-512)
+- **Size**: 30,633 chest X-rays with clinical reports
+- **Labels**: Automatically generated CheXpert labels for 14 pathologies
+- **Text**: Combined findings + impression reports
+
+Label Distribution (Training Set)
+| Pathology | Positive Rate | Clinical Importance |
+|-----------|---------------|-------------------|
+| Support Devices | 56.6% | Common (monitoring) |
+| Lung Opacity | 28.5% | Moderate (investigation needed) |
+| Atelectasis | 28.5% | Moderate (follow-up) |
+| Pleural Effusion | 24.7% | High (treatment often needed) |
+| Edema | 20.2% | High (cardiac/pulmonary concern) |
+| No Finding | 16.5% | Normal studies |
+| Cardiomegaly | 12.2% | High (cardiac evaluation) |
+| Pneumonia | 9.5% | Critical (immediate treatment) |
+| Pneumothorax | 6.2% | Emergency (life-threatening) |
 
 ## 🏗️ Architecture
 
 ```
-Input: Chest X-ray + Clinical Text
+Input: Chest X-ray (224×224) + Clinical Text (findings + impression)
     ↓
 Vision Encoder (ViT) + Text Encoder (ClinicalBERT)
     ↓
-Cross-Modal Attention Fusion
+Cross-Modal Attention Fusion (768-dim)
     ↓
 Multi-Head Output:
-├── Classification (Normal/Abnormal)
-├── Uncertainty Estimation
-└── Safety Assessment
+├── CheXpert Classification (14-class multi-label)
+├── Uncertainty Estimation (Epistemic + Aleatoric)
+└── Safety Assessment (Human Review Flags)
 ```
 
 ## 🛡️ Safety Features
@@ -104,34 +119,36 @@ Multi-Head Output:
 - **Aleatoric**: Data uncertainty via learned variance
 - **Calibration**: Temperature scaling for probability calibration
 
-### 2. Failure Detection
-
-- Out-of-distribution detection using feature density
-- Adversarial robustness testing
-- Consistency checks between modalities
-
-### 3. Safety Benchmarks
+### 2. Safety Benchmarks
 
 - Uncertainty-risk alignment correlation
 - Failure detection efficacy (AUROC)
 - Robustness under distribution shift
 - Human-AI collaboration safety metrics
 
+### 3. Automated Safety Flags
+
+```
+# Human review triggers
+if confidence < 0.3:                              # Low confidence
+    flag_for_review = True
+if pathology == "Pneumothorax" and uncertainty > 0.4:  # Critical findings
+    flag_for_review = True
+if model_disagreement > 0.5:                      # High epistemic uncertainty
+    flag_for_review = True
+```
+
 ## 📁 Project Structure
 
 ```
 medical-multimodal-safety/
-├── src/                    # Source code
-│   ├── model.py           # Core model architecture
-│   ├── safety_eval.py     # Safety evaluation framework
-│   ├── data_utils.py      # Data processing utilities
-│   └── train.py           # Training script
-├── notebooks/             # Jupyter notebooks
-├── configs/               # Configuration files
-├── tests/                 # Unit tests
-├── demo.py               # Streamlit demo
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
+├── config.py              # Enhanced configuration with CheXpert
+├── data_loader.py          # Data loading with CheXpert labeling
+├── train.py               # Multi-label training script
+├── model.py               # Vision-language architecture
+├── utils.py               # Logging and checkpointing utilities
+├── requirements.txt       # Python dependencies
+└── README.md             # Documentation
 ```
 
 ## 🔬 Usage
@@ -139,13 +156,13 @@ medical-multimodal-safety/
 ### Training
 
 ```bash
-python src/train.py --config configs/default.yaml
+python train.py --config configs/default.yaml
 ```
 
 ### Evaluation
 
 ```bash
-python src/safety_eval.py --model_path models/best_model.pt
+python safety_eval.py --model_path models/best_model.pt
 ```
 
 ### Demo
@@ -178,14 +195,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [MIMIC-CXR](https://physionet.org/content/mimic-cxr/) dataset from MIT-LCP
+- [CheXpert labeler](https://github.com/stanfordmlgroup/chexpert-labeler) for extracting labels from radiology reports
 - [ClinicalBERT](https://github.com/EmilyAlsentzer/clinicalBERT) for medical text encoding
 - Stanford AIMI for preprocessed datasets
 
 ## 📞 Contact
 
-- **Author**: Your Name
-- **Email**: your.email@example.com
-- **Project Link**: https://github.com/yourusername/medical-multimodal-safety
+- **Author**: Andres Gomez
+- **Email**: andres.gab(dot)gomez AT gmail.com
+- **Project Link**: https://github.com/Andres-G-Gomez/medical-multimodal-safety
 
 ---
 
